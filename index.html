@@ -30,8 +30,23 @@
       	width: 340px;
       }
 
+      #pano {
+      	width: 260px;
+      	height: 260px;
+      }
+
       .container {
       	height: 100%;
+      }
+
+      .text {
+      	font-size: 14px;
+      }
+
+      #toggle-draw {
+      	width: 30%;
+      	position: relative;
+      	margin-left: 10px;
       }
     </style>
   </head>
@@ -42,12 +57,15 @@
   			<div>
   				<input id="show-listings" type="button" value="Show Listings">
   				<input id="hide-listings" type="button" value="Hide Listings">
+  				<hr>
+  				<span class="text">Click the symbol in the top left of the map to start drawing!</span>
+  				<span class="text">Draw a shape with clicks to search locations within it!</span>
+  				<input id="toggle-draw" type="button" value="Drawing Tools">
   			</div>
   		</div>
     <div id="map"></div>
     </div>
-    <script src="js/app.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBZEEo-Bqlc2bcgovhOahenChXpSlm6IPE&callback=initMap"
-    async defer></script>
+    <script async defer src="js/app.js"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBZEEo-Bqlc2bcgovhOahenChXpSlm6IPE&libraries=drawing,geometry&v=3&callback=initMap"></script>
   </body>
 </html>

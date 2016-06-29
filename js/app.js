@@ -2,6 +2,8 @@ var map;
 var marker;
 var infowindow;
 var markers = [];
+//this global polygon is to ensure only a single polygon is rendered
+var polygon = null;
 
 function initMap() {
 
@@ -72,6 +74,17 @@ function initMap() {
 
 	var largeInfoWindow = new google.maps.InfoWindow();
 
+	//initialize a drawing manager
+	var drawingManager = new google.maps.drawing.DrawingManager({
+		drawingMode: google.maps.drawing.OverlayType.POLYGON,
+		drawingControl: true,
+		drawingControlOptions: {
+			position: google.maps.ControlPosition.TOP_LEFT,
+			drawingModes: [
+			google.maps.drawing.OverlayType.POLYGON]
+		}
+	});
+
 	var defaultIcon = makeMarkerIcon("0091ff");
 
 	var highlightedIcon = makeMarkerIcon("FFFF24");
@@ -106,16 +119,71 @@ function initMap() {
 	document.getElementById('show-listings').addEventListener('click', showListings);
 	document.getElementById('hide-listings').addEventListener('click', hideListings);
 
+	document.getElementById('toggle-draw').addEventListener('click', function() {
+		toggleDrawing(drawingManager);
+	});
+
+	//add polygon event listener call the searchWithinPolygon function and only show markers within the polygon
+	drawingManager.addListener('overlaycomplete', function(event){
+		//first check if there is already a polygon
+		//if yes remove it and the markers within it
+		if (polygon) {
+			polygon.setMap(null);
+			hideListings();
+		}
+		//switching the drawing mode to the hand not the mark tool
+		drawingManager.setDrawingMode(null);
+		//creat a new editable polygon from the overlay
+		polygon = event.overlay;
+		polygon.setEditable(true);
+		polygonArea = google.maps.geometry.spherical.computeArea(polygon.getPath());
+		window.alert(polygonArea+' meters squared');
+		//searching within the polygon
+		searchWithinPolygon();
+		//make sure the search is done again if the polygon is changed
+		polygon.getPath().addListener('set_at', searchWithinPolygon);
+		polygon.getPath().addListener('insert_at', searchWithinPolygon);
+	});
+
 	function populateInfoWindow(marker, infowindow) {
 		//check to make sure the infowindow is not already opened on this marker
 		if (infowindow.marker != marker) {
+			infowindow.setContent('');
 			infowindow.marker = marker;
-			infowindow.setContent('<div>' + marker.title + "</div>");
-			infowindow.open(map, marker);
 			//make sure the marker property is cleared if the infowindow is closed
 			infowindow.addListener('closeclick', function(){
-				infowindow.setMarker(null);
+				infowindow.marker = null;
 			});
+			var streetViewService = new google.maps.StreetViewService();
+			var radius = 50;
+			//In the case this status is ok which means that pano was found,
+			//compute the position of the streetview image, then calculate the heading,
+			//then get a panorama from that and set the options
+			function getStreetView(data, status) {
+				if (status == google.maps.StreetViewStatus.OK) {
+					var nearStreetViewLocation = data.location.latLng;
+					var heading = google.maps.geometry.spherical.computeHeading(
+						nearStreetViewLocation, marker.position);
+						infowindow.setContent('<div>' + marker.title + '</div><div id="pano"></div>');
+						var panoramaOptions = {
+							position: nearStreetViewLocation,
+							pov: {
+								heading: heading,
+								pitch: 30
+							}
+						};
+					var panorama = new google.maps.StreetViewPanorama(
+						document.getElementById('pano'), panoramaOptions);
+				} else {
+					infowindow.setContent*('<div>' + marker.title + '</div>' +
+						'<div>No Street View Found</div>');
+				}
+			}
+			//Use streetview service to get the closest streetview image within
+			//50 meters of the marker position
+			streetViewService.getPanoramaByLocation(marker.position, radius, getStreetView);
+			//Open the infowindow at the correct marker
+			infowindow.open(map, marker);
 		}
 	}
 
@@ -145,5 +213,30 @@ function initMap() {
 			new google.maps.Point(10, 34),
 			new google.maps.Size(21, 34));
 		return markerImage;
+	}
+
+	function toggleDrawing(drawingManager) {
+		if (drawingManager.map) {
+			drawingManager.setMap(null);
+			//also remove the polygon but leave the markers from the defined area
+			if (polygon) {
+				polygon.setMap(null);
+			}
+		} else {
+			drawingManager.setMap(map);
+		}
+	}
+
+	//this function hides all markers outside the polygon 
+	//and shows only the ones within it this is what lets a user
+	//specidy an area of search
+	function searchWithinPolygon() {
+		for (var i = 0; i < markers.length; i++) {
+			if (google.maps.geometry.poly.containsLocation(markers[i].position, polygon)) {
+				markers[i].setMap(map);
+			} else {
+				markers[i].setMap(null);
+			}
+		}
 	}
 };
