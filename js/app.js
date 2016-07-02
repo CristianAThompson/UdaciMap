@@ -52,7 +52,7 @@ function initMap() {
 		stylers: [
 			{color: "#efe9e4"},
 			{lightness: -25}
-		]		
+		]
 	}
 	];
 	map = new google.maps.Map(document.getElementById('map'), {
@@ -104,7 +104,7 @@ function initMap() {
 		//push the marker to our markers array
 		markers.push(marker);
 		//create an onclick event for each marker
-		marker.addListener('click', function(){
+		marker.addListener('click', function() {
 			populateInfoWindow(this, largeInfoWindow);
 		});
 		//two event listeners: one for mouseover and one for mouseout
@@ -121,6 +121,14 @@ function initMap() {
 
 	document.getElementById('toggle-draw').addEventListener('click', function() {
 		toggleDrawing(drawingManager);
+	});
+
+	document.getElementById('zoom-to-area').addEventListener('click', function() {
+		zoomToArea();
+	});
+
+	document.getElementById('search-within-time').addEventListener('click', function() {
+		searchWithinTime();
 	});
 
 	//add polygon event listener call the searchWithinPolygon function and only show markers within the polygon
@@ -227,7 +235,7 @@ function initMap() {
 		}
 	}
 
-	//this function hides all markers outside the polygon 
+	//this function hides all markers outside the polygon
 	//and shows only the ones within it this is what lets a user
 	//specidy an area of search
 	function searchWithinPolygon() {
@@ -236,6 +244,118 @@ function initMap() {
 				markers[i].setMap(map);
 			} else {
 				markers[i].setMap(null);
+			}
+		}
+	}
+
+
+	//This function takes the input value in the find nearby text area locates it
+	//then zooms to that area this is so that the user can show all listings
+	//then decide to focus on a specific area of the map
+	function zoomToArea() {
+		//initialize the geocoder
+		var geocoder = new google.maps.Geocoder();
+		//Get the address or place that the user entered
+		var address = document.getElementById('zoom-to-area-text').value;
+		//Make sure the address isn't blank
+		if (address == '') {
+			window.alert('You must enter an area, or address.');
+		} else {
+			//Geocode the address/area entered to get the center, then center the map
+			//on that location and zoom in
+			geocoder.geocode(
+				{ address: address,
+					componentRestrictions: {locality: 'New York'}
+				}, function(results, status) {
+					if (status == google.maps.GeocoderStatus.OK) {
+						map.setCenter(results[0].geometry.location);
+						map.setZoom(15);
+					} else {
+						window.alert('We could not find that location - try entering a more specific place.');
+					}
+				});
+		}
+	}
+
+	//this function allows the user to input a desired travel time and only show
+	//the listings that are within the travel time via a specified travel mode of
+	//that location
+	function searchWithinTime() {
+		//initialize the distance matrix service
+		var distanceMatrixService = new google.maps.DistanceMatrixService;
+		var address = document.getElementById('search-within-time-text').value;
+		//check to make sure the place entered isnt blank
+		if (address == '') {
+			window.alert('You must enter an address.');
+		} else {
+			hideListings();
+			//use the distance matrix to calculate the duration of routes between all
+			//markers and the destination entered by the user then put all origins
+			//into an origin matrix
+			var origins = [];
+			for (var i = 0; i < markers.length; i++) {
+				origins[i] = markers[i].position;
+			}
+			var destination = address;
+			var mode = document.getElementById('mode').value;
+			//now that both the origins and destination are defined get all info for
+			//the distances between them
+			distanceMatrixService.getDistanceMatrix({
+				origins: origins,
+				destinations: [destination],
+				travelMode: google.maps.TravelMode[mode],
+				unitSystem: google.maps.UnitSystem.IMPERIAL
+			}, function(response, status) {
+				if (status !== google.maps.DistanceMatrixStatus.OK) {
+					window.alert('Error was: ' + status);
+				} else {
+					displayMarkersWithinTime(response);
+				}
+			});
+		}
+	}
+
+	//this function iterates through each result and if the distance is less than
+	//the value selected show the corresponding marker
+	function displayMarkersWithinTime(response) {
+		var maxDuration = document.getElementById('max-duration').value;
+		var origins = response.originAddresses;
+		var destinations = response.destinationAddresses;
+		//parse the results and get the distance and duration of each
+		//because there might be multiple origins we have a loop then make sure at
+		//least 1 result was returned
+		var atLeastOne = false;
+		for (var i = 0; i < origins.length; i++) {
+			var results = response.rows[i].elements;
+			for (var j = 0; j < results.length; j++) {
+				var element = results[j];
+				if (element.status === "OK") {
+					//the distance is returned in feet but the text is in miles, if we wanted
+					//to switch to show the markers within a user entered distance we would
+					//need the value for distance but for now we only need the text
+					var distanceText = element.distance.text;
+					//duration value is given in seconds so we make it minutes we need both
+					//the value and the text
+					var duration = element.duration.value / 60;
+					var durationText = element.duration.text;
+					if (duration <= maxDuration) {
+						//the origin [i] should equal the markers[i]
+						markers[i].setMap(map);
+						atLeastOne = true;
+						//create a mini infowindow to open immediately and contain the distance
+						//and duration
+						var infowindow = new google.maps.InfoWindow({
+							content: durationText + ' away, ' + distanceText
+						});
+						infowindow.open(map, markers[i]);
+						//put this in so that this small window closes if user clicks the marker
+						//and the large infowindow opens
+						markers[i].infowindow = infowindow;
+						google.maps.event.addListener(markers[i], 'click', function() {
+							this.infowindow.close();
+						});
+					}
+				}
 			}
 		}
 	}

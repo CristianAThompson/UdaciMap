@@ -48,6 +48,19 @@
       	position: relative;
       	margin-left: 10px;
       }
+
+      #zoom-to-area-text {
+        position: relative;
+        width: 70%;
+      }
+
+      #zoom-to-area {
+        width: 24%;
+      }
+
+      #search-within-time-text {
+        width: 84%;
+      }
     </style>
   </head>
   <body>
@@ -62,6 +75,30 @@
   				<span class="text">Draw a shape with clicks to search locations within it!</span>
   				<input id="toggle-draw" type="button" value="Drawing Tools">
   			</div>
+        <hr>
+        <div>
+          <input id="zoom-to-area-text" type="text" placeholder="Enter a search location!">
+          <input id="zoom-to-area" type="button" value="Zoom">
+        </div>
+        <hr>
+        <div>
+          <span class="text"> Within </span>
+          <select id="max-duration">
+            <option value="10">10 Minutes</option>
+            <option value="15">15 Minutes</option>
+            <option value="30">30 Minutes</option>
+            <option value="60">60 Minutes</option>
+          </select>
+          <select id="mode">
+            <option value="DRIVING">Drive</option>
+            <option value="WALKING">Walk</option>
+            <option value="BICYCLING">Bike</option>
+            <option value="TRANSIT">Transit</option>
+          </select>
+          <span class="text">of</span>
+          <input id="search-within-time-text" type="text" placeholder="Eg: Google Office NYC">
+          <input id="search-within-time" type="button" value="Go">
+        </div>
   		</div>
     <div id="map"></div>
     </div>
